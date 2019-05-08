@@ -2,7 +2,7 @@ import featureTransformation as ft
 from sklearn.naive_bayes import GaussianNB
 
 if __name__ == '__main__':
-    X_Training, Y_Training, X_Test, Y_Test = ft.getTrainingLabelsAndTestData(0.67)
+    X_Training, Y_Training, X_Test, Y_Test = ft.get_training_labels_and_test_data(0.67)
     classificator = GaussianNB()
     classificator.fit(X_Training, Y_Training)
     results = classificator.predict(X_Test)
