@@ -7,14 +7,15 @@
 ### After that, the data can be used to train and test any supervised classifier
 
 import re
+from io import StringIO
 import csv
 import random
 import numpy
 
-# word_bag_dictionary shows at which position a certain feature is in the wordBag.
+# wordbagDictionary shows at which position a certain feature is in the wordBag. 
 # It holds a unique value for each word so that it's identifiable in the wordBag.
-word_bag_dictionary = {}
-word_bag = []
+wordBagDictionary = {}
+wordBag = []
 
 LABELMAP = {
     "INCOME": 1,
@@ -25,7 +26,6 @@ LABELMAP = {
     "FINANCE": 6,
     "TRAFFIC": 7
 }
-
 
 def __remove_special_characters_and_numbers(str):
     """Removes all special characters and numbers from a string
@@ -38,35 +38,23 @@ def __remove_special_characters_and_numbers(str):
     str = re.sub('[\d_]+', '', str)
     return str;
 
-
-def __read_csv(file, debug=False):
+def __readCsv(file, debug = False):
     """Reads the CSV file with the data, splits it with the delimiter semicolon
     and returns the values as a list
     """
-    csv_file = open(file, 'r')
-    reader = csv.reader(csv_file, delimiter=';')
+    csvfile = open(file, 'r')
+    reader = csv.reader(csvfile, delimiter=';')
     content = list(reader)
     # Remove header
     content.pop(0)
-    # for test purposes, I implemented a switch to return just
-    # the first 5 lines
-    x = []
-    x.append(content[0])
-    x.append(content[1])
-    x.append(content[2])
-    x.append(content[3])
-    x.append(content[4])
-    if debug:
-        return x
     return content
 
-
-def __split_text(text, count_duplicates=False):
+def __splitText(text, countDuplicates = False):
     """Splits all the tokens in a text. Returns them in a unique list. 
     If countDuplicates is true, the list can contain tokens multiple times
     """
     tokens = text.split(' ')
-    if not count_duplicates:
+    if countDuplicates == False:
         tokens = set(tokens)
 
     r = []
@@ -76,11 +64,10 @@ def __split_text(text, count_duplicates=False):
         r.append(token)
     return r
 
-
-def __extract_all_tokens(csv_content, count_duplicates=False):
+def __extractAllTokens(csv_content, countDuplicates = False):
     """Extracts all tokens from the string cells in the csv file
     Tokens are single words. Every token has to be in the feature vector.
-    In text classification, if we had 200 words, we'd have a 200-dimensional
+    In text classification, if we had 200 unique words, we'd have a 200-dimensional
     feature vector.
     We're only interested in the following features in the dataset:
     Buchungstext, Verwendungszweck, Beguenstigter/Zahlungspflichtiger, Betrag, Label
@@ -99,43 +86,40 @@ def __extract_all_tokens(csv_content, count_duplicates=False):
        Gutschrift: 0, Miete: 2, Bylademsbt: 1, DE: 1, Beuthener: 1, Str: 1, Dauerauftrag: 2, Georg: 1, Tasche: 1, Betrag: -670, Label: 2]
     ]
     """
-    all_tokens = []
+    allTokens = []
     for line in csv_content:
-        # line[4] = Buchungstext, line[5] = Verwendungszweck, line[6] = Begünstigter
-        tokens = __split_text(line[4] + " " + line[5] + " " + line[6], count_duplicates)
-        all_tokens.append(tokens)
-    return all_tokens
+		#line[4] = Buchungstext, line[5] = Verwendungszweck, line[6] = Begünstigter
+        tokens = __splitText(line[4] + " " + line[5] + " " + line[6], countDuplicates)
+        allTokens.append(tokens)
+    return allTokens
 
-
-def __create_word_bag_and_dictionary(all_tokens):
-    for token_line in all_tokens:
-        for token in token_line:
+def __createWordBagAndDictionary(allTokens):
+    for tokenLine in allTokens:
+        for token in tokenLine:
             if token == '':
                 continue
-            if token not in word_bag_dictionary:
-                word_bag.append(token)
-                word_bag_dictionary[token] = len(word_bag) - 1
+            if token not in wordBagDictionary:
+                wordBag.append(token)
+                wordBagDictionary[token] = len(wordBag) - 1
 
-
-def __create_feature_matrix(all_tokens):
+def __createFeatureMatrix(allTokens):
     """Creates the feature matrix based on all the tokens that were extracted.
     This function just creates the feature matrix based on the tokens but not on the 
     additional features like budget value or something else. However, it creates the
     array and adds extra space for these features. 
     """
-    feature_matrix = []
-    for token_line in all_tokens:
+    featureMatrix = []
+    for tokenLine in allTokens:
         # +2 because we still need to add the budget value and the labels
-        feature_matrix.append([0] * (len(word_bag) + 2))
-        for token in token_line:
+        featureMatrix.append([0] * (len(wordBag) + 2))
+        for token in tokenLine:
             if token == '':
                 continue
-            pos = word_bag_dictionary[token]
-            feature_matrix[len(feature_matrix) - 1][pos] += 1
-    return feature_matrix
+            pos = wordBagDictionary[token]
+            featureMatrix[len(featureMatrix)-1][pos] += 1
+    return featureMatrix
 
-
-def __add_budget_value_and_labels(csv_content, feature_matrix):
+def __addBudgetValueAndLabels(csv_content, featureMatrix):
     """Adds the budget value and the labels to the feature matrix.
     The feature matrix contains at this stage just the whole word dictionary
     as feature vectors. We still need the budget value for classifying tasks
@@ -147,51 +131,48 @@ def __add_budget_value_and_labels(csv_content, feature_matrix):
     for line in csv_content:
         # budget value sometimes has commas in it so we cant convert it to float later on. 
         # therefor, we replace the comma with a point so we can cast it to float. 
-        feature_matrix[i][len(feature_matrix[i]) - 2] = line[9].replace(",", ".")
-        feature_matrix[i][len(feature_matrix[i]) - 1] = __get_label_nr(line[11].upper())
+        featureMatrix[i][len(featureMatrix[i])-2] = line[9].replace(",",".")
+        featureMatrix[i][len(featureMatrix[i])-1] = __getLabelNr(line[11].upper())
         i += 1
-    return feature_matrix
-
+    return featureMatrix
 
 # Function taken from https://machinelearningmastery.com/naive-bayes-classifier-scratch-python/
-def __split_data_set(data_set, split_ratio):
+def __splitDataset(dataset, splitRatio):
     """Splits the dataset randomly into a training and a test set.
     The ratio is a value between 0 and 1 and describes the percentage on 
     how much data should be training data. For example, setting it to 0.8
     means we have 80 percent of training and 20 percent of testing data.
     """
-    train_size = int(len(data_set) * split_ratio)
-    train_set = []
-    copy = list(data_set)
-    while len(train_set) < train_size:
+    trainSize = int(len(dataset) * splitRatio)
+    trainSet = []
+    copy = list(dataset)
+    while len(trainSet) < trainSize:
         index = random.randrange(len(copy))
-        train_set.append(copy.pop(index))
-    return [train_set, copy]
+        trainSet.append(copy.pop(index))
+    return [trainSet, copy]
 
-
-# return a tuple which contains the training data, the corresponding labels and the test data
-def get_training_labels_and_test_data(percentage_of_training_data):
+#return a tuple which contains the training data, the corresponding labels and the test data
+def getTrainingLabelsAndTestData(percentageOfTrainingData):
     """Returns a tuple of training data, training labels, test data and test labels
     Test labels are just returned for evaluating how good the classification worked
     """
-    csv_content = __read_csv('Exercise 1 - Transaction Classification - Data Set.csv')
-    all_tokens = __extract_all_tokens(csv_content, True)
-    __create_word_bag_and_dictionary(all_tokens)
-    feature_matrix = __create_feature_matrix(all_tokens)
-    feature_matrix = __add_budget_value_and_labels(csv_content, feature_matrix)
+    csv_content = __readCsv('Exercise 1 - Transaction Classification - Data Set.csv')
+    allTokens = __extractAllTokens(csv_content, True)
+    __createWordBagAndDictionary(allTokens)
+    featureMatrix = __createFeatureMatrix(allTokens)
+    featureMatrix = __addBudgetValueAndLabels(csv_content, featureMatrix)
 
-    training_data_with_labels, test_data = __split_data_set(feature_matrix, percentage_of_training_data)
-    training_data_with_labels = numpy.array(training_data_with_labels).astype(numpy.float)
-    test_data = numpy.array(test_data).astype(numpy.float)
+    trainingDataWithLabels, testData = __splitDataset(featureMatrix, percentageOfTrainingData)
+    trainingDataWithLabels = numpy.array(trainingDataWithLabels).astype(numpy.float)
+    testData = numpy.array(testData).astype(numpy.float)
 
-    test_labels = test_data[:, -1]
+    testLabels = testData[:,-1]
     # remove labels
-    test_data = numpy.delete(test_data, len(test_data[0]) - 1, axis=1)
-    training_labels = training_data_with_labels[:, -1]
+    testData = numpy.delete(testData, len(testData[0]) - 1, axis=1)
+    trainingLabels = trainingDataWithLabels[:,-1]
     # remove labels
-    training_data = numpy.delete(training_data_with_labels, len(training_data_with_labels[0]) - 1, axis=1)
-    return training_data, training_labels, test_data, test_labels
+    trainingData = numpy.delete(trainingDataWithLabels, len(trainingDataWithLabels[0]) - 1, axis=1)
+    return trainingData, trainingLabels, testData, testLabels
 
-
-def __get_label_nr(labelName):
+def __getLabelNr(labelName):
     return LABELMAP.get(labelName, -1)
